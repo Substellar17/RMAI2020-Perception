@@ -136,9 +136,26 @@ def output(img, CUDA, model, device,num_classes,confidence=0.05, nms_thesh=0.02,
 
 '''
 # 注：
-# 输出为一个list,list中包含每辆车的字典,目前字典中有两个key值,'car_box'与'armor_box', car_box为一维数组, armor_box为二维数组.‘armor_box’为[]时没有匹配到对应的装甲板.匹配的iou阈值可以调整.
-# 格式如：[{'car_box': array([468.017  ,  86.88042, 526.57666, 138.35327], dtype=float32), 'armor_box': array([], dtype=float64)}, {'car_box': array([382.3557 , 167.36795, 459.72476, 228.34549], dtype=float32), 'armor_box': array([[394.31442261, 204.36643982, 415.21707153, 218.80717468],
-#        [442.17236328, 205.49127197, 459.47769165, 221.09608459]])}, {'car_box': array([ 63.237453, 135.55783 , 137.73201 , 192.92749 ], dtype=float32), 'armor_box': array([[112.04547119, 166.20730591, 128.70788574, 178.04029846]])}]
+# 输出为一个list, list中包含每辆车的字典, 目前字典中有两个key值, 'car_box'与'armor_box', car_box为一维数组, armor_box为二维数组. 
+# 'armor_box'为[]时没有匹配到对应的装甲板. 匹配的iou阈值可以调整.
+# 格式如：
+# [
+#   {
+#     'car_box': array([468.017  ,  86.88042, 526.57666, 138.35327], dtype=float32),
+#     'armor_box': array([], dtype=float64)
+#   }, 
+#   {
+#     'car_box': array([382.3557 , 167.36795, 459.72476, 228.34549], dtype=float32), 
+#     'armor_box': array(
+#       [[394.31442261, 204.36643982, 415.21707153, 218.80717468], 
+#        [442.17236328, 205.49127197, 459.47769165, 221.09608459]]
+#     )
+#   }, 
+#   {
+#     'car_box': array([ 63.237453, 135.55783 , 137.73201 , 192.92749 ], dtype=float32), 
+#     'armor_box': array([[112.04547119, 166.20730591, 128.70788574, 178.04029846]])
+#   }
+# ]
 # 在程序中调用时，注释下一句 img = Image.open(img)，直接将图片输入到output函数中即可
 '''
 #print(output(Image.open('/media/xuer/Seagate Slim Drive/camera_raw_morning_0814/10000/camera_raw_left/12-2020-08-14_09_56_11.jpg')))

@@ -26,19 +26,19 @@ def load_mlp_model(guard):
     model=torch.load('cfg/mlp_' + guard + '.pt')
     return model
 
-def position_prediction(net_model,box,guard='left'):
+def position_prediction(net_model, box, guard='left'):
     """
     :param net_model: pretrained model
     :param guard: left or right
-    :param box: (xyxy) 图像中某个car的box坐标
-    :return: （x,y） MLP映射的实际地图坐标
+    :param box: (xy,xy) 图像中某个car的box坐标
+    :return: (x,y) MLP映射的实际地图坐标
     """
 
     with torch.no_grad():
         img_w = (box[2] - box[0])
         img_h = (box[3] - box[1])
         inputs = [box[0] + img_w / 2, box[3], img_w, img_h]
-        inputs=torch.tensor(inputs,dtype=torch.float32)
+        inputs=torch.tensor(inputs, dtype=torch.float32)
 
         if torch.cuda.is_available():
             inputs = inputs.cuda()
@@ -91,7 +91,7 @@ def compute_l2(output,label):
     :param label: (n,2)
     :return:
     """
-    dis=output-label
-    error=np.sqrt(dis[:,0]**2+dis[:,1]**2)
-    return sum(error)/len(label)
+    dis = output - label
+    error = np.sqrt(dis[:,0]**2 + dis[:,1]**2)
+    return sum(error) / len(label)
 

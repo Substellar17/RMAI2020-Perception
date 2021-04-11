@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# Video
+*.avi
+*.mp4
+
+images
+demo/.vs
+demo/fig4
+demo/video_footage

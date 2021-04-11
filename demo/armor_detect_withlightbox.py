@@ -8,8 +8,10 @@ import cv2
 import numpy as np
 import math
 
-show_detail = False
+# [tymon] enable show_detail
+show_detail = True
 make_video = False
+
 
 def read_morphology(cap):  # read cap and morphological operation to get led binary image.
     ret, frame = cap.read()
@@ -32,25 +34,40 @@ def read_morphology(cap):  # read cap and morphological operation to get led bin
     cv2.imshow("mask", mask)
     cv2.imshow("dilate",dst_dilate)
     cv2.imwrite('ROI.jpg',dst_dilate)
-    cv2.moveWindow("dilate", 0, 600)
+    # cv2.moveWindow("dilate", 0, 600)
 
     return dst_dilate, frame,factor
+
 
 def read_morphology_withlightbox(frame):  # read cap and morphological operation to get led binary image.
     size_img = frame.shape[:2]
     
     #WIDTH, HIGH = int(570), int(600)
+    # [tymon]: 归一化到height=200
     factor = round(200/size_img[0])
     WIDTH, HIGH = int(size_img[1] * factor), int(size_img[0] * factor)
-
     frame = cv2.resize(frame, (WIDTH, HIGH), interpolation=cv2.INTER_CUBIC)
 
+    # [tymon] hsv分离. 色调（H）饱和度（S）明度（V）
     mask = hsv_change(frame)
+    
+    # [tymon]
+    # 开操作：图像形态学的重要操纵之一，基于膨胀与腐蚀操作组合形成的；主要是应用在二值图像分析中，灰度图像亦可
+    # 开操作 = 腐蚀+膨胀 ，输入图像 + 结构元素
+    # 作用：用来消除小物体、平滑较大物体的边界的同时并不明显改变其面积，提取水平或竖直的线
+
+    # 闭操作：图像形态学的重要操纵之一，基于膨胀与腐蚀操作组合形成的；主要是应用在二值图像分析中，灰度图像亦可
+    # 闭操作 = 膨胀+腐蚀 ，输入图像 + 结构元素
+    # 作用：用来填充物体内细小空洞、连接邻近物体、平滑其边界的同时并不明显改变其面积
     dst_open = open_binary(mask, 13, 13)
     #dst_close = close_binary(mask, 3, 3)
+
+    # [tymon] 腐蚀
     dst_erode = erode_binary(dst_open, 7, 7)
     #dst_erode = erode_binary(dst_close, 3, 3)
+    # [tymon] 膨胀
     dst_dilate = dilate_binary(dst_erode, 3, 3)
+
     cv2.circle(frame, (int(WIDTH / 2), int(HIGH / 2)), 2, (255, 0, 255), -1)
     
     if show_detail:
@@ -59,9 +76,11 @@ def read_morphology_withlightbox(frame):  # read cap and morphological operation
 
         #cv2.imshow("mask", mask)
         cv2.imshow("mask",dst_dilate1)
-        cv2.moveWindow("mask", 0, 0)
+        #cv2.moveWindow("mask", 0, 0)
         #cv2.moveWindow("dilate", 650, 0)
+
     return dst_dilate, frame, factor
+
 
 def hsv_change(frame):  # hsv channel separation.
 
@@ -74,6 +93,7 @@ def hsv_change(frame):  # hsv channel separation.
     upper_hsv = np.array([255,255,255])
     mask = cv2.inRange(hsv, lowerb=lower_hsv, upperb=upper_hsv)
     return mask
+
 
 def open_binary(binary, x, y):
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (x, y))
@@ -98,7 +118,8 @@ def dilate_binary(binary, x, y):
     dst = cv2.dilate(binary, kernel)
     return dst
 
-def find_contours_withlightbox(binary, frame,rect_index):  # find contours and main screening section
+
+def find_contours_withlightbox(binary, frame, rect_index):  # find contours and main screening section
     contour = []
     C_lights = []
 
@@ -113,26 +134,27 @@ def find_contours_withlightbox(binary, frame,rect_index):  # find contours and m
         if len(contours[i]) >=5:
             ellipse=cv2.fitEllipse(contours[i])    #用一个椭圆来匹配目标。它返回一个旋转了的矩形的内接椭圆
             (x, y), (MA, ma), angle = ellipse[0], ellipse[1], ellipse[2]
-            ellipseArea = 3.14 * MA * ma/4         #计算外接椭圆面积
+            ellipseArea = 3.14 * MA * ma / 4       #计算外接椭圆面积
             area = cv2.contourArea(contours[i])    #计算轮廓面积
-            if area/ellipseArea >=0.8 and area >= 300 and area <= 4000:     #判断凸度(Solidity) 和轮廓面积大小
+            if area/ellipseArea >=0.8 and area >= 300 and area <= 4000:     #判断凸度(Solidity)和轮廓面积大小
                 if show_detail:
                     frame=cv2.ellipse(frame,ellipse,(0,255,0),2)
                     #print(area)
-                rect = cv2.minAreaRect(contours[i])   #根据轮廓得到外接矩阵 长宽不固定，靠近x轴定义长
-                #if rect[1][0]/rect[1][1] < 0.8 or rect[1][0]/rect[1][1] > 1.25:      #判断矩阵长宽比？？？
-                a=tuple(((rect[1][0]*1.1,rect[1][1]*1.1)))      #外接矩形(宽，长)？？？
-                rect = tuple((rect[0],a,rect[2]))
+                # [tymon] rect: ( center(x, y), (width, height), angle of rotation )
+                rect = cv2.minAreaRect(contours[i])     #根据轮廓得到外接矩阵，长宽不固定，靠近x轴定义长
+                # [tymon] 矩形扩大一点点
+                a = (rect[1][0]*1.1,rect[1][1]*1.1)
+                rect = (rect[0],a,rect[2])
+                # [tymon] calculate 4 points' position of the rect
                 box = cv2.boxPoints(rect)
                 box = np.int0(box)
                 if show_detail:
                     frame = cv2.drawContours(frame,[box],0,(255,0,0),2)
                     print(area)
-                contour.append((rect,box,area,x,y))   #保存符合要求的外接矩形及四点坐标，面积和中心x坐标
+                contour.append((rect,box,area,x,y))     #保存符合要求的外接矩形及四点坐标，面积和中心x坐标
 
 ##-----------------------------3. Find the right pair of lights----------------##
-##campare each pair of contours, The approximate parallel, length-width ratio
-
+##campare each pair of contours, the approximate parallel, length-width ratio.
     if len(contour) >=2:
         for i in range(len(contour)):
             j = i+1
@@ -158,7 +180,6 @@ def find_contours_withlightbox(binary, frame,rect_index):  # find contours and m
                 j +=1
 
 ##----------------------------4. Find best pair of lights----------------------##
-    
     if len(C_lights) > 1:
         distance = []
         for i in range(len(C_lights)):
@@ -184,15 +205,14 @@ def find_contours_withlightbox(binary, frame,rect_index):  # find contours and m
     if make_video:
         mask = cv2.resize(binary,(600,500),interpolation=cv2.INTER_CUBIC)
         cv2.imshow("mask", mask)
-        cv2.moveWindow("mask", 0, 0)
+        # cv2.moveWindow("mask", 0, 0)
         frame2 = cv2.drawContours(frame,[np.int0(l_light)],0,(0,255,0),2)      #画出两个灯条矩形
         frame2 = cv2.drawContours(frame2,[np.int0(r_light)],0,(0,255,0),2)
         frame2 = cv2.resize(frame2,(600,500),interpolation=cv2.INTER_CUBIC)
         cv2.imshow('light_box',frame2)
-        cv2.moveWindow('light_box', 600, 0)
+        # cv2.moveWindow('light_box', 600, 0)
 
 ##---------------------------5. Find Armor through pair of lights--------------##
-
     n = len(l_light) + len(r_light)
     cnt = np.zeros((n,1,2))
     for i in range(len(l_light)):
@@ -209,22 +229,23 @@ def find_contours_withlightbox(binary, frame,rect_index):  # find contours and m
         filename = 'light_detect_' + str(rect_index)  
         frame = cv2.resize(frame,(600,500),interpolation=cv2.INTER_CUBIC)
         cv2.imshow(filename,frame)
-        cv2.moveWindow(filename, 1200, 0)
+        # cv2.moveWindow(filename, 1200, 0)
     if show_detail:
         filename = 'light_detect_' + str(rect_index)  
         frame = cv2.resize(frame,(600,500),interpolation=cv2.INTER_CUBIC)
         cv2.imshow(filename,frame)
         #cv2.imwrite('detect.jpg',frame)
         #cv2.imshow('a',robot)
-        if rect_index == 0:
-            cv2.moveWindow(filename, 1200, 0)
-        elif rect_index == 1:
-            cv2.moveWindow(filename, 600, 1000)
-        elif rect_index ==2:
-            cv2.moveWindow(filename, 1200, 1000)
-        elif rect_index ==3:
-            cv2.moveWindow(filename, 1800, 1000)
-    return C_lights,box
+        # if rect_index == 0:
+        #     cv2.moveWindow(filename, 1200, 0)
+        # elif rect_index == 1:
+        #     cv2.moveWindow(filename, 600, 1000)
+        # elif rect_index ==2:
+        #     cv2.moveWindow(filename, 1200, 1000)
+        # elif rect_index ==3:
+        #     cv2.moveWindow(filename, 1800, 1000)
+    return C_lights, box
+
 
 if __name__ == '__main__':
     #cap = cv2.VideoCapture("video_footage/img1.jpg") 
