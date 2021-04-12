@@ -1,5 +1,8 @@
 ##v4版本可以识别多车并对应,并行运算
 
+# 场地 493.5 685.0 (245, 423)
+# 灯条 12.5(5.5) 13.5
+
 import sys
 sys.path.append("./angle_classify")
 sys.path.append("./armor_classify")
@@ -22,19 +25,35 @@ from armor_detect_withlightbox import read_morphology_withlightbox,find_contours
 
 camera = 'left'
 
+mouse_down_pos = []
+def on_mouse(event, x, y, flags, param):
+    # if event == cv2.EVENT_MOUSEMOVE:
+    #     print("mouse move:", x, y)
+    if event == cv2.EVENT_LBUTTONDOWN:
+        print("mouse down:", x, y)
+        mouse_down_pos.append((x, y))
 
-def camera_calibration(camera='left'):
-    # TODO 获取相机内参，获取二维码四点世界坐标
+def camera_calibration(cap, camera='left'):
     np.set_printoptions(suppress=True)
-    object_3d_points = np.array(([-75, -75, 0],
-                                 [75, -75, 0],
-                                 [75, 75, 0],
-                                 [-75, 75, 0]), dtype=np.double)
-    # TODO 将 object_2d_point 的值设为detect得到的二维码四点坐标
-    object_2d_point = np.array(([954., 534.],
-                                [1004., 536.],
-                                [1006., 579.],
-                                [956., 577.]), dtype=np.double)
+    # 四个参考点的世界坐标(mm) 右手系
+    object_3d_points = np.array(([0, 0, 0],
+                                 [4935, 0, 0],
+                                 [0, 6850, 0],
+                                 [2450, 4230, 0]), dtype=np.double)
+    ref_point_num = len(object_3d_points)
+
+    ret, frame = cap.read()
+    cv2.imshow('camera', frame)
+    cv2.setMouseCallback('camera', on_mouse)
+
+    while cap.isOpened() and len(mouse_down_pos) < ref_point_num:
+        ret, frame = cap.read()
+        cv2.imshow('camera', frame)
+        cv2.waitKey(5)
+
+    # 四个参考点的像素坐标
+    object_2d_point = np.asarray(mouse_down_pos, dtype=np.double)
+    print("object_2d_point:\n", object_2d_point)
 
     # TODO 相机标定
     if camera == 'left':
@@ -186,13 +205,14 @@ def world_angle_6(fig, pos, camera = 'left'):
     return alpha, predicted
 
 
-#------------------main------------------#
-cap = cv2.VideoCapture("video_footage/1cars.avi")
+#-----------------------main----------------------------------#
+# cap = cv2.VideoCapture("video_footage/1cars.avi")
+cap = cv2.VideoCapture(1) # video capture on camera
 if (cap.isOpened() == False):
     print("Error opening video stream or file")
 
 frame_id = 0
-Rcw, translation_vector_cam, camera_matrix, dist_coeffs = camera_calibration(camera)
+Rcw, translation_vector_cam, camera_matrix, dist_coeffs = camera_calibration(cap, camera)
 
 
 #region load models
