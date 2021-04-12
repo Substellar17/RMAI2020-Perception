@@ -47,9 +47,14 @@ def camera_calibration(cap, camera='left'):
     cv2.setMouseCallback('camera', on_mouse)
 
     while cap.isOpened() and len(mouse_down_pos) < ref_point_num:
-        ret, frame = cap.read()
-        cv2.imshow('camera', frame)
-        cv2.waitKey(5)
+        if not use_video_file:
+            ret, frame = cap.read()
+            cv2.imshow('camera', frame)
+            cv2.waitKey(5)
+        else:
+            cv2.waitKey(0)
+
+    cv2.destroyWindow('camera')
 
     # 四个参考点的像素坐标
     object_2d_point = np.asarray(mouse_down_pos, dtype=np.double)
@@ -206,8 +211,13 @@ def world_angle_6(fig, pos, camera = 'left'):
 
 
 #-----------------------main----------------------------------#
-# cap = cv2.VideoCapture("video_footage/1cars.avi")
-cap = cv2.VideoCapture(1) # video capture on camera
+save_image_log = False
+
+use_video_file = False
+if use_video_file:
+    cap = cv2.VideoCapture("video_footage/1cars.avi")
+else:
+    cap = cv2.VideoCapture(1) # video capture on camera
 if (cap.isOpened() == False):
     print("Error opening video stream or file")
 
@@ -446,7 +456,8 @@ while (cap.isOpened()):
         img_path = './fig4/' + img_name
 
         cv2.imshow('img', frame_show)
-        cv2.imwrite(img_path, frame_show)
+        if save_image_log:
+            cv2.imwrite(img_path, frame_show)
         cv2.moveWindow('img', 0, 0)    
         cv2.waitKey(5)
 
