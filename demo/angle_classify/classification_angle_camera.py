@@ -49,9 +49,11 @@ class Angle1(nn.Module):
 
 def classification_angle_camer_modelload(camera = 'left'):
     if camera == 'left':
-        net_model_car = torch.load('./angle_classify/data/net_model_angle_test2.pt')
+        # net_model_car = torch.load('./angle_classify/data/net_model_angle_test2.pt')
+        net_model_car = torch.load('./angle_classify/data/net_model_angle_test2.pt', torch.device('cpu'))
     elif camera == 'right':
-        net_model_car = torch.load('./angle_classify/data/net_model_angle_right.pt')
+        # net_model_car = torch.load('./angle_classify/data/net_model_angle_right.pt')
+        net_model_car = torch.load('./angle_classify/data/net_model_angle_right.pt', torch.device('cpu'))
     net_model_car.eval()
     return net_model_car
 

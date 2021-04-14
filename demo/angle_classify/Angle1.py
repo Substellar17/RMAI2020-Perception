@@ -42,7 +42,8 @@ class Angle1(nn.Module):
         # print(x.shape)
         # 把二维特征图变为一维，这样全连接层才能处理
         x = x.view(-1, 24 * 4 * 4)
-        y1 = torch.tensor(y, dtype=torch.float32).cuda()
+        # y1 = torch.tensor(y, dtype=torch.float32).cuda()
+        y1 = torch.tensor(y, dtype=torch.float32)
 
         cat = torch.cat((x, y1), 1)
         # print(x.shape)

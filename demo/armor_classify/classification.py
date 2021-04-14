@@ -42,7 +42,8 @@ class LeNet(nn.Module):
         return x
 
 def classification_modelload():
-    net_model = torch.load('./armor_classify/data/net_armor_model.pt')
+    # net_model = torch.load('./armor_classify/data/net_armor_model.pt')
+    net_model = torch.load('./armor_classify/data/net_armor_model.pt', torch.device('cpu'))
 
     net_model.eval()
     return net_model

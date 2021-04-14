@@ -26,6 +26,7 @@ from armor_detect_withlightbox import read_morphology_withlightbox,find_contours
 camera = 'left'
 
 mouse_down_pos = []
+
 def on_mouse(event, x, y, flags, param):
     # if event == cv2.EVENT_MOUSEMOVE:
     #     print("mouse move:", x, y)
@@ -37,8 +38,8 @@ def camera_calibration(cap, camera='left'):
     np.set_printoptions(suppress=True)
     # 四个参考点的世界坐标(mm) 右手系
     object_3d_points = np.array(([0, 0, 0],
-                                 [4935, 0, 0],
-                                 [0, 6850, 0],
+                                 [3890, 4705, 0],
+                                 [2495, 2360, 0],
                                  [2450, 4230, 0]), dtype=np.double)
     ref_point_num = len(object_3d_points)
 
@@ -62,11 +63,11 @@ def camera_calibration(cap, camera='left'):
 
     # TODO 相机标定
     if camera == 'left':
-        camera_matrix = np.array([[6.570931846420799e+02,0,3.196939147616254e+02],
-                                  [0,6.190714811365291e+02,2.520205008433231e+02],
-                                  [0,0,1]], dtype="double")
-        dist_coeffs = np.transpose([-0.216248222896496, 0.226313370014235, -0.001139415943532, 
-                                    -0.004624035593808, -0.059067986510048])
+         camera_matrix = np.array([[1.1640e+3, 0, 929.9118],
+                                   [0, 1.1627e+3, 559.4615],
+                                   [0,0,1]], dtype = "double")
+         dist_coeffs = np.transpose([0.0597, -0.2569, 3.7921e-4, 1.6921e-5, 0.1209])
+
     
     if camera == 'right':
         camera_matrix = np.array([[653.528968471312,0,316.090142900466],
@@ -155,7 +156,8 @@ def armor_6(fig):
     fig = torch.Tensor(fig)
     fig = fig.permute((2,0,1))
     img = torch.unsqueeze(fig, 0)
-    outputs = net_model(img.cuda())
+    # outputs = net_model(img.cuda())
+    outputs = net_model(img)
     _, predicted = torch.max(outputs.data, 1)
 
     return int(predicted)
@@ -188,7 +190,8 @@ def world_angle_6(fig, pos, camera = 'left'):
     fig = torch.Tensor(fig)
     fig = fig.permute(2, 0, 1)
     img = torch.unsqueeze(fig, 0)
-    outputs = net_model_angle(img.cuda(), pos_array.cuda())
+    # outputs = net_model_angle(img.cuda(), pos_array.cuda())
+    outputs = net_model_angle(img, pos_array)
     _, predicted = torch.max(outputs.data, 1)
     predicted = int(predicted)
     
@@ -214,10 +217,17 @@ def world_angle_6(fig, pos, camera = 'left'):
 save_image_log = False
 
 use_video_file = False
+
+width = 1920
+height = 1080
+
 if use_video_file:
     cap = cv2.VideoCapture("video_footage/1cars.avi")
 else:
     cap = cv2.VideoCapture(1) # video capture on camera
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)    #设置宽度
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)  #设置长度
+
 if (cap.isOpened() == False):
     print("Error opening video stream or file")
 
@@ -247,6 +257,8 @@ model.load_darknet_weights(weightsfile)
 # [tymon] mlp_model: a torch model to calculate distance
 mlp_model = load_mlp_model(camera)
 mlp_model.eval() # [tymon] eval mode, not to change weights in model
+print()
+print("yolo loaded")
 
 #-----------------------class model---------------------------#
 # [tymon] armor classification
@@ -298,19 +310,32 @@ while (cap.isOpened()):
         # # armor_box为二维数组, 每行4个值表示一个装甲框的位置
         output_dict = output(frame, CUDA, model, device, num_classes)
 
+        # [Zixing] 遍历每辆车
         for i in range(len(output_dict)):
-            output_dict[i]['car_class'] = -1
+
+            # 车辆阵营
+            output_dict[i]['car_class'] = -1 # -1：未知阵营 
+            # 车辆位姿角度
             output_dict[i]['car_angle'] = []
+            # 车辆灯条框
             output_dict[i]['light_box'] = np.zeros((len(output_dict[i]['armor_box'])+1, 4, 2))
+            # 车辆位置坐标
             output_dict[i]['position'] = np.zeros((len(output_dict[i]['armor_box'])+1, 2))
+
+            # 灯条计数
             light_cnt = 0
 
             #-------------基于灯条的位置解算---------------------------------#
+
+            # 识别到该车装甲板
             if len(output_dict[i]['armor_box']) != 0:
+
+                # 裁剪灯条
                 y0 = int(round(output_dict[i]['armor_box'][0][1])) - 5
                 h = int(round(output_dict[i]['armor_box'][0][3])) - int(round(output_dict[i]['armor_box'][0][1])) + 10
                 x0 = int(round(output_dict[i]['armor_box'][0][0])) - 5
                 w = int(round(output_dict[i]['armor_box'][0][2])) - int(round(output_dict[i]['armor_box'][0][0])) + 10
+
                 # [tymon] 剪裁出第一个装甲的图, 用它去给车分类
                 armor = frame[y0:y0+h, x0:x0+w]
                 if np.shape(armor)[0] !=0 and np.shape(armor)[1] !=0:
@@ -318,16 +343,25 @@ while (cap.isOpened()):
                     car_class = armor_6(armor)
                     output_dict[i]['car_class'] = car_class
 
+                # 遍历装甲板
                 for j in range(len(output_dict[i]['armor_box'])):
                     index = j
+
+                    # 裁剪第 j 号装甲板
                     y0 = int(round(output_dict[i]['armor_box'][j][1])) - 5
                     h = int(round(output_dict[i]['armor_box'][j][3])) - int(round(output_dict[i]['armor_box'][j][1])) + 10
                     x0 = int(round(output_dict[i]['armor_box'][j][0])) - 5
                     w = int(round(output_dict[i]['armor_box'][j][2])) - int(round(output_dict[i]['armor_box'][j][0])) + 10
                     armor = frame[y0:y0+h, x0:x0+w]
-                    if np.shape(armor)[0] !=0 and np.shape(armor)[1] !=0:
+
+                    # armor 有效
+                    if np.shape(armor)[0] != 0 and np.shape(armor)[1] != 0:
+
+                        # find contours with light box
                         dst_dilate, robot_resize, factor = read_morphology_withlightbox(armor)
                         _, box = find_contours_withlightbox(dst_dilate, robot_resize, index)
+
+                        # 找到两根灯条之后才能开始算！！
                         if len(box) != 1:
                             light_cnt += 1
                             for l in range(len(box)):
@@ -341,12 +375,21 @@ while (cap.isOpened()):
                             #-------from camera coordinate system to world coordinate system-----#
                             _, translation_vector, distance = camera_in_armor_coord(left_up,left_down,right_up,right_down )
                             position_world = np.dot(Rcw.T,(translation_vector-translation_vector_cam))
+            
                             
-                            # TODO
-                            x = (position_world[2] + 3260) / 1000
-                            y = (-position_world[0] + 440) / 1000 + 0.3
+                            # TODO： 修正误差
+
+                            x = position_world[0] / 1000
+                            y = position_world[1] / 1000
+
                             output_dict[i]['light_box'][j] = box
                             output_dict[i]['position'][j] = (x, y)
+
+                            print("X world: ", position_world[2])
+                            print("Y world: ", position_world[0])
+                            print("position world: ", position_world)
+                            # print("x = ", x)
+                            # print("y = ", y)
 
                         # TODO
                         if np.sqrt((x0 + w/2 - 257)**2 + (y0 + h/2 - 220)**2) > 50:
@@ -380,9 +423,11 @@ while (cap.isOpened()):
                         _, translation_vector, distance = camera_in_armor_coord(left_up, left_down, right_up, right_down)
                         position_world = np.dot(Rcw.T, (translation_vector-translation_vector_cam))
 
-                        # TODO
-                        x = (position_world[2] + 3260)/1000
-                        y = (-position_world[0] + 440)/1000+0.3
+                        # TODO: 修正误差
+
+                        x = position_world[0] / 1000
+                        y = position_world[1] / 1000
+
                         output_dict[i]['position'][-1] = (x,y)
 
             #-------------MLP 位置预测---------------------------------#
@@ -395,6 +440,7 @@ while (cap.isOpened()):
             # position_f = position_fusion(output_dict[i])
             # 取出第一个成功的解算坐标
             # TODO 多个灯条结合 and 灯条到车辆中心换算
+
             position_f = (0, 0)
             for j in range(len(output_dict[i]['position'])):
                 if np.max(output_dict[i]['position'][j]) != 0:
@@ -446,6 +492,8 @@ while (cap.isOpened()):
 
             pos = output_dict[i]['final_position']
             frame_show = cv2.putText(frame_show, 'x=%.2f,y=%.2f'%(pos[0],pos[1]), (x0,y0), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0), 1)
+            # frame_show = cv2.putText(frame_show, 'x=%.2f,y=%.2f'%(position_world[2],position_world[0]), (x0,y0), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0), 1)
+            # print(output_dict)
 
         t_stop = time.time()
         time_stop = time.time()

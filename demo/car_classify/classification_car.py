@@ -45,7 +45,8 @@ class LeNet_car(nn.Module):
         return x
 
 def car_classification_modelload():
-    net_model_car = torch.load('./car_classify/data/net_model_car.pt')
+    # net_model_car = torch.load('./car_classify/data/net_model_car.pt')
+    net_model_car = torch.load('./car_classify/data/net_model_car.pt', torch.device('cpu'))
     net_model_car.eval()
     return net_model_car
 

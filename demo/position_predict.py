@@ -23,7 +23,8 @@ class MapNet(nn.Module):
         return x
 
 def load_mlp_model(guard):
-    model=torch.load('cfg/mlp_' + guard + '.pt')
+    # model=torch.load('cfg/mlp_' + guard + '.pt')
+    model=torch.load('cfg/mlp_' + guard + '.pt', torch.device("cpu"))
     return model
 
 def position_prediction(net_model, box, guard='left'):
